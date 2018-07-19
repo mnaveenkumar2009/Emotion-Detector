@@ -1,0 +1,1 @@
+g++ -ggdb display_train_images.cpp -o display_train_images `pkg-config --cflags --libs opencv`
