@@ -21,12 +21,28 @@ int train[48][48][4178],label[4178];
 short train_size=0.75*4178.0;
 
 vvvld network[7],error[7];
-
-
-
+ld w1[5][5][1][10],w2[5][5][10][10],w4[5][5][10][7];
+void random_initialize(){
+    
+    srand(time(NULL));
+    short i,j,k,u;
+    f(i,5)
+        f(j,5)
+            f(k,1)
+                f(u,10)
+                    w1[i][j][k][u]=((ld)rand())/1000000.0;
+    f(i,5)
+        f(j,5)
+            f(k,10)
+                f(u,10)
+                    w2[i][j][k][u]=((ld)rand())/1000000.0;
+    f(i,5)
+        f(j,5)
+            f(k,10)
+                f(u,7)
+                    w4[i][j][k][u]=((ld)rand())/1000000.0;
+}
 void back_prop(){
-    // weights
-    ld w1[5][5][1][10],w2[5][5][10][10],w4[5][5][10][7];
 
     // network
     network[0].resize(48,vvld(48,vld(1,0)));
@@ -44,13 +60,20 @@ void back_prop(){
     error[5].resize(7,vvld(1,vld(1,0)));
 
     short i,j,number_of_iterations=100;
+    // random initialisation
+    random_initialize();
+
     while(number_of_iterations--){
-        short image_no;
+        short image_no,pred_label[4178];
         double accuracy = 0;
         f(image_no,train_size){
 
         }
 
+        f(image_no,number_of_images-train_size){
+            accuracy+=(label[image_no+train_size]==pred_label[image_no+train_size]);
+        }
+        accuracy/=(ld)(number_of_images-train_size);
         cout<<accuracy<<'\n';
     }
 
