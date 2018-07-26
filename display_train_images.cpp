@@ -25,7 +25,7 @@ int main(){
     train.open("dataset/train.csv");
     string s;
     train>>s;
-    short number_of_images=10;
+    short number_of_images=100;
     while(number_of_images--){
         int emotion;
         emotion=trainscan();
