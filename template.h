@@ -16,8 +16,6 @@ using namespace std;
 #define ld long double
 #define gc getchar
 #define pc putchar
-#define vvvi vector < vector < vector <int> > > 
-#define vvvld vector < vector < vector <ld> > > 
 inline ll uscan()
 {
     ll n=0,c=gc();
