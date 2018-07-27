@@ -1,4 +1,5 @@
 #include "template.h"
+#include <omp.h>
 // #include <opencv2/opencv.hpp>
 // using namespace cv;
 #define vvvld vector < vector < vector <ld> > >
@@ -21,9 +22,8 @@ model : 6 layers
 // int train[48][48][4178];
 vvvld train(4178,vvld (48,vld (48)));
 int label[4178];
-short train_size=0.75*4178.0;
+short train_size=2800;
 
-vvvld network[7];
 ld w1[5][5][1][10],w2[5][5][10][10],w4[5][5][10][7],wFC[700][7];
 void random_initialize(){
     
@@ -49,7 +49,7 @@ void random_initialize(){
             wFC[i][j]=((ld)(rand()-rand()))/1000000.0;
 }
 
-void forward_prop(int image_no){
+void forward_prop(int image_no,vvvld network[7]){
     network[0][0] = train[image_no];
     
     vvvld temp;
@@ -76,14 +76,14 @@ void forward_prop(int image_no){
             }
         }
     }
-
+   
     // network 2
     temp.resize(10,vvld(48,vld(48,0)));
     f(k,10)
     f(i,48)
         f(j,48){
             temp[k][i][j]=0;
-            if(i-1>=0&&j-1>=0&&i-1<48&&j-1<48)
+            if(i-1>=0&&j-1>=0&&i-1<46&&j-1<46)
                 temp[k][i][j]=network[1][k][i-1][j-1];
         }
 
@@ -116,7 +116,7 @@ void forward_prop(int image_no){
     f(i,24)
         f(j,24){
             temp[k][i][j]=0;
-            if(i-1>=0&&j-1>=0&&i-1<48&&j-1<48)
+            if(i-1>=0&&j-1>=0&&i-1<22&&j-1<22)
                 temp[k][i][j]=network[3][k][i-1][j-1];
         }
 
@@ -144,163 +144,172 @@ void forward_prop(int image_no){
 }
 
 void back_prop(){
+    
 
-    // network
-    network[0].resize(1,vvld(48,vld(48,0)));
-    network[1].resize(10,vvld(46,vld(46,0)));
-    network[2].resize(10,vvld(44,vld(44,0)));
-    network[3].resize(10,vvld(22,vld(22,0)));
-    network[4].resize(7,vvld(10,vld(10,0))); // FC 700
-    network[5].resize(1,vvld(1,vld(7,0)));
-
-
-    short i,j,number_of_iterations=20;
+   short number_of_iterations=20;
     // random initialisation
     random_initialize();
-
     // do the back prop
     while(number_of_iterations--){
-        short image_no,pred_label[4178];
-        double accuracy = 0;
-        
+        short pred_label[4178];
+        short image_no;
+        ld accuracy = 0;
         ld Dw1[5][5][1][10]={0},Dw2[5][5][10][10]={0},Dw4[5][5][10][7]={0},DwFC[700][7]={0};
-        f(image_no,train_size){
+        omp_set_num_threads(700);
+        short xxx;
+        f(xxx,4){
+            #pragma omp parallel private(image_no)
+            {
+                short i,j;
+                image_no = omp_get_thread_num() + xxx*700;
+                vvvld network[7];
+                // network
+                network[0].resize(1,vvld(48,vld(48,0)));
+                network[1].resize(10,vvld(46,vld(46,0)));
+                network[2].resize(10,vvld(44,vld(44,0)));
+                network[3].resize(10,vvld(22,vld(22,0)));
+                network[4].resize(7,vvld(10,vld(10,0))); // FC 700
+                network[5].resize(1,vvld(1,vld(7,0)));
+                vvvld error[7];
+                error[0].resize(1,vvld(48,vld(48,0))); // useless
+                error[1].resize(10,vvld(46,vld(46,0)));
+                error[2].resize(10,vvld(44,vld(44,0)));
+                error[3].resize(10,vvld(22,vld(22,0)));
+                error[4].resize(7,vvld(10,vld(10,0))); // FC 700
+                error[5].resize(1,vvld(1,vld(7,0)));
+                //forward propogation
+                
+                forward_prop(image_no,network);
+                
+                //find errors
+                error[5]=network[5];// output error
+                error[5][0][0][label[image_no]]-=1.0;
 
-            vvvld error[7];
-            error[0].resize(1,vvld(48,vld(48,0))); // useless
-            error[1].resize(10,vvld(46,vld(46,0)));
-            error[2].resize(10,vvld(44,vld(44,0)));
-            error[3].resize(10,vvld(22,vld(22,0)));
-            error[4].resize(7,vvld(10,vld(10,0))); // FC 700
-            error[5].resize(1,vvld(1,vld(7,0)));
-            //forward propogation
-            forward_prop(image_no);            
-            //find errors
-            error[5]=network[5];// output error
-            error[5][0][0][label[image_no]]-=1.0;
-
-            // error 4
-            f(i,700){
-                ld temp = network[4][i/100][(i/10)%10][i%10];
-                f(j,7)
-                    error[4][i/100][(i/10)%10][i%10]+=wFC[i][j]*error[5][0][0][i];
-                error[4][i/100][(i/10)%10][i%10]*=temp*(1-temp);
-            }
-            
-            short k,u;
-            // error 3
-            f(i,10){
-                f(j,10){
-                    f(k,7){
-                        short u,u2;
-                        f(u2,10)
-                            f(u,25){
-                                if(((2*i)+(u/5))-1<22&&((2*i)+(u/5))-1>=0&&((2*j)+(u%5))-1<22&&((2*j)+(u%5))-1>=0)
-                                    error[3][u2][((2*i)+(u/5))-1][((2*j)+(u%5))-1]+=error[4][k][i][j]*w4[u/5][u%5][u2][k];
-                            }
-                    }
+                // error 4
+                f(i,700){
+                    ld temp = network[4][i/100][(i/10)%10][i%10];
+                    f(j,7)
+                        error[4][i/100][(i/10)%10][i%10]+=wFC[i][j]*error[5][0][0][i];
+                    error[4][i/100][(i/10)%10][i%10]*=temp*(1-temp);
                 }
-            }
-
-            f(i,10)
-                f(j,22)
-                    f(k,22)
-                        error[3][i][j][k]*=(network[3][i][j][k])*(1-network[3][i][j][k]);
-
-            // error 2
-            f(i,44){
-                f(j,44){
-                    f(k,10){
-                        if(network[2][k][i][j]==network[3][k][i/2][j/2]){
-                            error[2][k][i][j]=error[3][k][i/2][j/2];
+                
+                short k,u;
+                // error 3
+                f(i,10){
+                    f(j,10){
+                        f(k,7){
+                            short u,u2;
+                            f(u2,10)
+                                f(u,25){
+                                    if(((2*i)+(u/5))-1<22&&((2*i)+(u/5))-1>=0&&((2*j)+(u%5))-1<22&&((2*j)+(u%5))-1>=0)
+                                        error[3][u2][((2*i)+(u/5))-1][((2*j)+(u%5))-1]+=error[4][k][i][j]*w4[u/5][u%5][u2][k];
+                                }
                         }
                     }
                 }
-            }
 
-            // error 1
+                f(i,10)
+                    f(j,22)
+                        f(k,22)
+                            error[3][i][j][k]*=(network[3][i][j][k])*(1-network[3][i][j][k]);
 
-            f(i,44){
-                f(j,44){
-                    f(k,10){
-                        short u,u2;
-                        f(u2,10)
-                            f(u,25){
-                                if(i+(u/5)-1>=0&&i+(u/5)-1<46&&j+(u%5)-1>=0&&j+(u%5)-1<46)
-                                    error[1][u2][i+(u/5)-1][j+(u%5)-1]+=error[2][k][i][j]*w2[u/5][u%5][u2][k];
+                // error 2
+                f(i,44){
+                    f(j,44){
+                        f(k,10){
+                            if(network[2][k][i][j]==network[3][k][i/2][j/2]){
+                                error[2][k][i][j]=error[3][k][i/2][j/2];
                             }
-                    }
-                }
-            }
-
-            f(i,10)
-                f(j,46)
-                    f(k,46)
-                        error[1][i][j][k]*=(network[1][i][j][k])*(1-network[1][i][j][k]);
-
-            // ld Dw1[5][5][1][10]={0},Dw2[5][5][10][10]={0},Dw4[5][5][10][7]={0},DwFC[700][7]={0};
-            
-            vvvld temp;
-            temp.resize(1,vvld(50,vld(50,0)));
-            f(i,50)
-                f(j,50){
-                    temp[0][i][j]=0;
-                    if((i-1)>=0&&(j-1)>=0&&(i-1)<48&&(j-1)<48)
-                        temp[0][i][j]=network[0][0][i-1][j-1];
-                }
-            f(i,46){
-                f(j,46){
-                    f(k,10){
-                        f(u,25){
-                            Dw1[u/5][u%5][0][k]+=error[1][k][i][j]*temp[0][i+(u/5)][j+(u%5)];
                         }
                     }
                 }
-            }
+                
+                // error 1
 
-            temp.resize(10,vvld(48,vld(48,0)));
-            f(k,10)
-            f(i,48)
-                f(j,48){
-                    temp[k][i][j]=0;
-                    if(i-1>=0&&j-1>=0&&i-1<48&&j-1<48)
-                        temp[k][i][j]=network[1][k][i-1][j-1];
-                }
-
-            f(i,44){
-                f(j,44){
-                    f(k,10){
-                        short u2;
-                        f(u2,10)
-                            f(u,25){
-                                Dw2[u/5][u%5][u2][k]+=error[2][k][i][j]*temp[u2][i+(u/5)][j+(u%5)];
-                            }
+                f(i,44){
+                    f(j,44){
+                        f(k,10){
+                            short u,u2;
+                            f(u2,10)
+                                f(u,25){
+                                    if((i+(u/5)-1>=0)&&(i+(u/5)-1<46)&&(j+(u%5)-1)>=0&&(j+(u%5)-1)<46)
+                                        error[1][u2][i+(u/5)-1][j+(u%5)-1]+=error[2][k][i][j]*w2[u/5][u%5][u2][k];
+                                }
+                        }
                     }
                 }
-            }
-            temp.resize(10,vvld(24,vld(24,0)));
-            f(k,10)
-            f(i,24)
-                f(j,24){
-                    temp[k][i][j]=0;
-                    if(i-1>=0&&j-1>=0&&i-1<48&&j-1<48)
-                        temp[k][i][j]=network[3][k][i-1][j-1];
-                }
 
-            f(i,10){
-                f(j,10){
-                    f(k,7){
-                        short u,u2;
-                        f(u2,10)
+                f(i,10)
+                    f(j,46)
+                        f(k,46)
+                            error[1][i][j][k]*=(network[1][i][j][k])*(1-network[1][i][j][k]);
+
+                // ld Dw1[5][5][1][10]={0},Dw2[5][5][10][10]={0},Dw4[5][5][10][7]={0},DwFC[700][7]={0};
+                
+                vvvld temp;
+                temp.resize(1,vvld(50,vld(50,0)));
+                f(i,50)
+                    f(j,50){
+                        temp[0][i][j]=0;
+                        if((i-1)>=0&&(j-1)>=0&&(i-1)<48&&(j-1)<48)
+                            temp[0][i][j]=network[0][0][i-1][j-1];
+                    }
+
+                f(i,46){
+                    f(j,46){
+                        f(k,10){
                             f(u,25){
-                                w4[u/5][u%5][u2][k]+=error[4][k][i][j]*temp[u2][(2*i)+(u/5)][(2*j)+(u%5)];
+                                Dw1[u/5][u%5][0][k]+=error[1][k][i][j]*temp[0][i+(u/5)][j+(u%5)];
                             }
+                        }
                     }
                 }
-            }
 
+                temp.resize(10,vvld(48,vld(48,0)));
+                f(k,10)
+                f(i,48)
+                    f(j,48){
+                        temp[k][i][j]=0;
+                        if(i-1>=0&&j-1>=0&&i-1<46&&j-1<46)
+                            temp[k][i][j]=network[1][k][i-1][j-1];
+                    }
+
+                f(i,44){
+                    f(j,44){
+                        f(k,10){
+                            short u2;
+                            f(u2,10)
+                                f(u,25){
+                                    Dw2[u/5][u%5][u2][k]+=error[2][k][i][j]*temp[u2][i+(u/5)][j+(u%5)];
+                                }
+                        }
+                    }
+                }
+                temp.resize(10,vvld(24,vld(24,0)));
+                f(k,10)
+                f(i,24)
+                    f(j,24){
+                        temp[k][i][j]=0;
+                        if(i-1>=0&&j-1>=0&&i-1<22&&j-1<22)
+                            temp[k][i][j]=network[3][k][i-1][j-1];
+                    }
+
+                f(i,10){
+                    f(j,10){
+                        f(k,7){
+                            short u,u2;
+                            f(u2,10)
+                                f(u,25){
+                                    w4[u/5][u%5][u2][k]+=error[4][k][i][j]*temp[u2][(2*i)+(u/5)][(2*j)+(u%5)];
+                                }
+                        }
+                    }
+                }
+                if(image_no%100==0)
+                    cout<<image_no<<'\n';
+            }
         }
-        short k,u;
+        short k,u,i,j;
         f(i,5){
             f(j,5){
                 f(k,10){
@@ -329,22 +338,38 @@ void back_prop(){
             }
         }
         
-        f(image_no,number_of_images){
-            forward_prop(image_no);
-            ld maxi=0;
-            int emotion=-1;
-            f(i,7)
-                maxi=max(maxi,network[5][0][0][i]);
-            f(i,7)
-                if(maxi==network[5][0][0][i])
-                    emotion=i;
-            pred_label[image_no]=emotion;
+        f(xxx,2){
+            omp_set_num_threads(689);
+            #pragma omp parallel private(image_no)
+            {
+                image_no=omp_get_thread_num()+train_size+xxx*689;
+                vvvld network[7];
+                // network
+                network[0].resize(1,vvld(48,vld(48,0)));
+                network[1].resize(10,vvld(46,vld(46,0)));
+                network[2].resize(10,vvld(44,vld(44,0)));
+                network[3].resize(10,vvld(22,vld(22,0)));
+                network[4].resize(7,vvld(10,vld(10,0))); // FC 700
+                network[5].resize(1,vvld(1,vld(7,0)));
+                forward_prop(image_no,network);
+                ld maxi=0;
+                int emotion=-1;
+                f(i,7)
+                    maxi=max(maxi,network[5][0][0][i]);
+                f(i,7)
+                    if(maxi==network[5][0][0][i])
+                        emotion=i;
+                pred_label[image_no]=emotion;
+            }
+            cout<<"hello\n";
         }
         f(image_no,number_of_images-train_size){
             accuracy+=(label[image_no+train_size]==pred_label[image_no+train_size]);
         }
-        accuracy/=(ld)(number_of_images-train_size);
+        // accuracy/=(ld)(number_of_images-train_size);
+        ofstream weights("weights");
         cout<<accuracy<<'\n';
+        
     }
 
 }
