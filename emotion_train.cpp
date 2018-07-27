@@ -163,6 +163,7 @@ void back_prop(){
         short image_no,pred_label[4178];
         double accuracy = 0;
         
+        ld Dw1[5][5][1][10]={0},Dw2[5][5][10][10]={0},Dw4[5][5][10][7]={0},DwFC[700][7]={0};
         f(image_no,train_size){
 
             vvvld error[7];
@@ -237,9 +238,97 @@ void back_prop(){
                     f(k,46)
                         error[1][i][j][k]*=(network[1][i][j][k])*(1-network[1][i][j][k]);
 
+            // ld Dw1[5][5][1][10]={0},Dw2[5][5][10][10]={0},Dw4[5][5][10][7]={0},DwFC[700][7]={0};
             
+            vvvld temp;
+            temp.resize(1,vvld(50,vld(50,0)));
+            f(i,50)
+                f(j,50){
+                    temp[0][i][j]=0;
+                    if((i-1)>=0&&(j-1)>=0&&(i-1)<48&&(j-1)<48)
+                        temp[0][i][j]=network[0][0][i-1][j-1];
+                }
+            f(i,46){
+                f(j,46){
+                    f(k,10){
+                        f(u,25){
+                            Dw1[u/5][u%5][0][k]+=error[1][k][i][j]*temp[0][i+(u/5)][j+(u%5)];
+                        }
+                    }
+                }
+            }
+
+            temp.resize(10,vvld(48,vld(48,0)));
+            f(k,10)
+            f(i,48)
+                f(j,48){
+                    temp[k][i][j]=0;
+                    if(i-1>=0&&j-1>=0&&i-1<48&&j-1<48)
+                        temp[k][i][j]=network[1][k][i-1][j-1];
+                }
+
+            f(i,44){
+                f(j,44){
+                    f(k,10){
+                        short u2;
+                        f(u2,10)
+                            f(u,25){
+                                Dw2[u/5][u%5][u2][k]+=error[2][k][i][j]*temp[u2][i+(u/5)][j+(u%5)];
+                            }
+                    }
+                }
+            }
+            temp.resize(10,vvld(24,vld(24,0)));
+            f(k,10)
+            f(i,24)
+                f(j,24){
+                    temp[k][i][j]=0;
+                    if(i-1>=0&&j-1>=0&&i-1<48&&j-1<48)
+                        temp[k][i][j]=network[3][k][i-1][j-1];
+                }
+
+            f(i,10){
+                f(j,10){
+                    f(k,7){
+                        short u,u2;
+                        f(u2,10)
+                            f(u,25){
+                                w4[u/5][u%5][u2][k]+=error[4][k][i][j]*temp[u2][(2*i)+(u/5)][(2*j)+(u%5)];
+                            }
+                    }
+                }
+            }
+
+        }
+        short k,u;
+        f(i,5){
+            f(j,5){
+                f(k,10){
+                    w1[i][j][0][k]-=Dw1[i][j][0][k];
+                }
+            }
         }
 
+        f(i,5){
+            f(j,5){
+                f(k,10){
+                    f(u,10){
+                        w2[i][j][u][k]-=Dw2[i][j][u][k];
+                    }
+                }
+            }
+        }
+
+        f(i,5){
+            f(j,5){
+                f(k,7){
+                    f(u,10){                        
+                        w4[i][j][u][k]-=Dw4[i][j][u][k];
+                    }
+                }
+            }
+        }
+        
         f(image_no,number_of_images){
             forward_prop(image_no);
             ld maxi=0;
