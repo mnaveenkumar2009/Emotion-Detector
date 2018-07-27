@@ -142,6 +142,7 @@ void forward_prop(int image_no){
         network[5][0][0][i] = activation(network[5][0][0][i]);
     }
 }
+
 void back_prop(){
 
     // network
@@ -161,31 +162,23 @@ void back_prop(){
     while(number_of_iterations--){
         short image_no,pred_label[4178];
         double accuracy = 0;
-        vvvld error[7];
-        error[0].resize(1,vvld(48,vld(48,0))); // useless
-        error[1].resize(10,vvld(46,vld(46,0)));
-        error[2].resize(10,vvld(44,vld(44,0)));
-        error[3].resize(10,vvld(22,vld(22,0)));
-        error[4].resize(7,vvld(10,vld(10,0))); // FC 700
-        error[5].resize(1,vvld(1,vld(7,0)));
         
         f(image_no,train_size){
+
+            vvvld error[7];
+            error[0].resize(1,vvld(48,vld(48,0))); // useless
+            error[1].resize(10,vvld(46,vld(46,0)));
+            error[2].resize(10,vvld(44,vld(44,0)));
+            error[3].resize(10,vvld(22,vld(22,0)));
+            error[4].resize(7,vvld(10,vld(10,0))); // FC 700
+            error[5].resize(1,vvld(1,vld(7,0)));
             //forward propogation
             forward_prop(image_no);            
             //find errors
-            /*
-            model : 6 layers
-                    1st layer : i/p : 48*48*1
-                    2nd layer : 5*5*1 conv(p=1,s=1) with 10 filters : 46*46*10
-                    3rd layer : 5*5*10 conv(p=1,s=1) with 10 filters : 44*44*10
-                    4th layer : max pool (/2): 22*22*10
-                    5th layer : 5*5*10 conv(p=1,s=2) with 7 filters : 10*10*7 = FC 700
-                    6th layer : o/p
-            */
             error[5]=network[5];// output error
-            assert(label[image_no]<7);
             error[5][0][0][label[image_no]]-=1.0;
 
+            // error 4
             f(i,700){
                 ld temp = network[4][i/100][(i/10)%10][i%10];
                 f(j,7)
@@ -194,13 +187,57 @@ void back_prop(){
             }
             
             short k,u;
-            f(i,22){
-                f(j,22){
-                    f(k,10){
-                        error[][k][][]
+            // error 3
+            f(i,10){
+                f(j,10){
+                    f(k,7){
+                        short u,u2;
+                        f(u2,10)
+                            f(u,25){
+                                if(((2*i)+(u/5))-1<22&&((2*i)+(u/5))-1>=0&&((2*j)+(u%5))-1<22&&((2*j)+(u%5))-1>=0)
+                                    error[3][u2][((2*i)+(u/5))-1][((2*j)+(u%5))-1]+=error[4][k][i][j]*w4[u/5][u%5][u2][k];
+                            }
                     }
                 }
             }
+
+            f(i,10)
+                f(j,22)
+                    f(k,22)
+                        error[3][i][j][k]*=(network[3][i][j][k])*(1-network[3][i][j][k]);
+
+            // error 2
+            f(i,44){
+                f(j,44){
+                    f(k,10){
+                        if(network[2][k][i][j]==network[3][k][i/2][j/2]){
+                            error[2][k][i][j]=error[3][k][i/2][j/2];
+                        }
+                    }
+                }
+            }
+
+            // error 1
+
+            f(i,44){
+                f(j,44){
+                    f(k,10){
+                        short u,u2;
+                        f(u2,10)
+                            f(u,25){
+                                if(i+(u/5)-1>=0&&i+(u/5)-1<46&&j+(u%5)-1>=0&&j+(u%5)-1<46)
+                                    error[1][u2][i+(u/5)-1][j+(u%5)-1]+=error[2][k][i][j]*w2[u/5][u%5][u2][k];
+                            }
+                    }
+                }
+            }
+
+            f(i,10)
+                f(j,46)
+                    f(k,46)
+                        error[1][i][j][k]*=(network[1][i][j][k])*(1-network[1][i][j][k]);
+
+            
         }
 
         f(image_no,number_of_images){
