@@ -25,6 +25,22 @@ int label[4178];
 short train_size=2800;
 
 ld w1[5][5][1][10],w2[5][5][10][10],w4[5][5][10][7],wFC[700][7];
+void encode_weights(){
+    ofstream weights("weights");
+    short i,j,k,u;
+    f(i,5)f(j,5)f(k,10)weights<<w1[i][j][0][k]<<'\n';
+    f(i,5)f(j,5)f(k,10)f(u,10)weights<<w2[i][j][k][u]<<'\n';
+    f(i,5)f(j,5)f(k,10)f(u,7)weights<<w4[i][j][k][u]<<'\n';
+    f(i,700)f(j,7)weights<<wFC[i][j]<<'\n';
+}
+void read_weights(){
+    ifstream weights("weights");
+    short i,j,k,u;
+    f(i,5)f(j,5)f(k,10)weights>>w1[i][j][0][k];
+    f(i,5)f(j,5)f(k,10)f(u,10)weights>>w2[i][j][k][u];
+    f(i,5)f(j,5)f(k,10)f(u,7)weights>>w4[i][j][k][u];
+    f(i,700)f(j,7)weights>>wFC[i][j];
+}
 void random_initialize(){
     
     srand(time(NULL));
@@ -189,7 +205,7 @@ void back_prop(){
                 f(i,700){
                     ld temp = network[4][i/100][(i/10)%10][i%10];
                     f(j,7)
-                        error[4][i/100][(i/10)%10][i%10]+=wFC[i][j]*error[5][0][0][i];
+                        error[4][i/100][(i/10)%10][i%10]+=wFC[i][j]*error[5][0][0][j];
                     error[4][i/100][(i/10)%10][i%10]*=temp*(1-temp);
                 }
                 
@@ -367,9 +383,8 @@ void back_prop(){
             accuracy+=(label[image_no+train_size]==pred_label[image_no+train_size]);
         }
         // accuracy/=(ld)(number_of_images-train_size);
-        ofstream weights("weights");
         cout<<accuracy<<'\n';
-        
+        encode_weights();
     }
 
 }
@@ -396,7 +411,8 @@ int main(){
         }
         cur++;
     }
-
+    // short i;
+    // f(i,10)cout<<label[i]<<'\n';
     // Mat image(48,48,CV_8UC1);
     // short i,j;
     // f(i,48){
@@ -413,6 +429,5 @@ int main(){
     
     // tested input
 
-    back_prop();
-    
+    back_prop();    
 }

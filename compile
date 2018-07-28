@@ -1,2 +1,3 @@
+g++ emotion_train.cpp -fopenmp
 g++ -ggdb display_train_images.cpp -o display_train_images `pkg-config --cflags --libs opencv`
 g++ -ggdb emotion_train.cpp -o emotion_train `pkg-config --cflags --libs opencv`

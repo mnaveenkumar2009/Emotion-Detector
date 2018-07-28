@@ -1,4 +1,4 @@
-#include "model/cnn.h"
+#include "template.h"
 
 int main(){
     
