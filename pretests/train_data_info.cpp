@@ -1,8 +1,8 @@
-#include "template.h"
+#include "../template.h"
 
 int main(){
     ifstream train;
-    train.open("dataset/train.csv");
+    train.open("../dataset/train.csv");
     string s;
     getline(train,s);
     ll number_of_images=0;

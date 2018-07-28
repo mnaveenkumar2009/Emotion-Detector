@@ -1,4 +1,4 @@
-#include "template.h"
+#include "../template.h"
 #include <opencv2/opencv.hpp>
 
 using namespace cv;
@@ -22,7 +22,7 @@ inline ll trainscan()
     return n+(-2*check*n);
 }
 int main(){
-    train.open("dataset/train.csv");
+    train.open("../dataset/train.csv");
     string s;
     train>>s;
     short number_of_images=100;

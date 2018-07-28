@@ -23,7 +23,7 @@ model : 6 layers
 vvvld train(4178,vvld (48,vld (48)));
 int label[4178];
 short train_size=2800;
-
+ld alpha = 0.01;
 ld w1[5][5][1][10],w2[5][5][10][10],w4[5][5][10][7],wFC[700][7];
 void encode_weights(){
     ofstream weights("weights");
@@ -49,20 +49,20 @@ void random_initialize(){
         f(j,5)
             f(k,1)
                 f(u,10)
-                    w1[i][j][k][u]=((ld)(rand()-rand()))/1000000.0;
+                    w1[i][j][k][u]=((ld)(rand()-rand()))/1e11;
     f(i,5)
         f(j,5)
             f(k,10)
                 f(u,10)
-                    w2[i][j][k][u]=((ld)(rand()-rand()))/1000000.0;
+                    w2[i][j][k][u]=((ld)(rand()-rand()))/1e11;
     f(i,5)
         f(j,5)
             f(k,10)
                 f(u,7)
-                    w4[i][j][k][u]=((ld)(rand()-rand()))/1000000.0;
+                    w4[i][j][k][u]=((ld)(rand()-rand()))/1e11;
     f(i,700)
         f(j,7)
-            wFC[i][j]=((ld)(rand()-rand()))/1000000.0;
+            wFC[i][j]=((ld)(rand()-rand()))/1e11;
 }
 
 void forward_prop(int image_no,vvvld network[7]){
@@ -162,9 +162,13 @@ void forward_prop(int image_no,vvvld network[7]){
 void back_prop(){
     
 
-   short number_of_iterations=20;
+   short number_of_iterations=200;
     // random initialisation
-    random_initialize();
+    bool random=true;
+    if(random)
+        random_initialize();
+    else
+        read_weights();
     // do the back prop
     while(number_of_iterations--){
         short pred_label[4178];
@@ -329,7 +333,7 @@ void back_prop(){
         f(i,5){
             f(j,5){
                 f(k,10){
-                    w1[i][j][0][k]-=Dw1[i][j][0][k];
+                    w1[i][j][0][k]-=alpha*Dw1[i][j][0][k];
                 }
             }
         }
@@ -338,7 +342,7 @@ void back_prop(){
             f(j,5){
                 f(k,10){
                     f(u,10){
-                        w2[i][j][u][k]-=Dw2[i][j][u][k];
+                        w2[i][j][u][k]-=alpha*Dw2[i][j][u][k];
                     }
                 }
             }
@@ -348,12 +352,13 @@ void back_prop(){
             f(j,5){
                 f(k,7){
                     f(u,10){                        
-                        w4[i][j][u][k]-=Dw4[i][j][u][k];
+                        w4[i][j][u][k]-=alpha*Dw4[i][j][u][k];
                     }
                 }
             }
         }
         
+        ofstream pred("pred");
         f(xxx,2){
             omp_set_num_threads(689);
             #pragma omp parallel private(image_no)
@@ -370,14 +375,16 @@ void back_prop(){
                 forward_prop(image_no,network);
                 ld maxi=0;
                 int emotion=-1;
-                f(i,7)
+                f(i,7){
                     maxi=max(maxi,network[5][0][0][i]);
+                    pred<<network[5][0][0][i]<<' ';
+                }pred<<'\n';
                 f(i,7)
                     if(maxi==network[5][0][0][i])
                         emotion=i;
                 pred_label[image_no]=emotion;
             }
-            cout<<"hello\n";
+            cout<<"689 predictions found\n";
         }
         f(image_no,number_of_images-train_size){
             accuracy+=(label[image_no+train_size]==pred_label[image_no+train_size]);
@@ -429,5 +436,19 @@ int main(){
     
     // tested input
 
-    back_prop();    
+
+    random_initialize();
+    vvvld network[7];
+    // network
+    network[0].resize(1,vvld(48,vld(48,0)));
+    network[1].resize(10,vvld(46,vld(46,0)));
+    network[2].resize(10,vvld(44,vld(44,0)));
+    network[3].resize(10,vvld(22,vld(22,0)));
+    network[4].resize(7,vvld(10,vld(10,0))); // FC 700
+    network[5].resize(1,vvld(1,vld(7,0)));
+    forward_prop(0,network);
+    short i;
+    f(i,7)
+    cout<<network[5][0][0][i]<<'\n';
+    back_prop();
 }
